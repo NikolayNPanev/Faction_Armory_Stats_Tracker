@@ -39,4 +39,4 @@ python -m unittest app_paths_test.py
 
 `bazel run //:windows_installer` requires Inno Setup 6 or 7 installed on the build machine. It writes `dist/installer/FactionArmoryStatsTracker-Setup.exe`. The GitHub release workflow installs Inno Setup, builds the installer on Windows, and attaches it to `v*` tag releases. The Windows CI workflow runs the smoke test and Bazel app build. `bazel test //...` is also available, but on Windows it requires symbolic-link privileges for rules_python's hermetic test environment.
 
-The installer's bundled executable is Windows-native; Bazel cannot produce one executable that runs on Windows, macOS, and Linux. Other operating systems need their own native packaging workflow.
+The installer's bundled executable is Windows-native.
