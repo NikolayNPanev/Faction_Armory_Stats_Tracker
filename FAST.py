@@ -5,9 +5,13 @@ from collections import Counter
 from datetime import datetime
 import openpyxl
 from openpyxl.chart import LineChart, Reference
+from app_paths import get_app_data_dir
 
 def get_faction_api_key(file_path):
     """Read the faction API key from a file."""
+    api_key = os.environ.get("FAST_API_KEY")
+    if api_key:
+        return api_key.strip()
     try:
         with open(file_path, 'r') as f:
             api_key = f.read().strip()
@@ -324,10 +328,11 @@ def torn_faction_inventory_api_call(api_key):
     return {"inventory": inventory, "inventory_timestamp": inventory_timestamp}
     
 def main():
-    api_key_file = 'faction_api_key.txt'
+    app_data_dir = get_app_data_dir()
+    api_key_file = app_data_dir / "faction_api_key.txt"
     api_key = get_faction_api_key(api_key_file)
     if api_key:
-        output_dir = os.path.join(os.getcwd(), "OUTPUT")
+        output_dir = str(app_data_dir / "OUTPUT")
         os.makedirs(output_dir, exist_ok=True)
 
         organized_crimes = torn_organized_crimes_api_call(api_key)

@@ -1,0 +1,24 @@
+name: Windows Bazel build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: bazel-contrib/setup-bazel@0.19.1
+        with:
+          bazelisk-cache: true
+          disk-cache: windows-build
+          repository-cache: true
+      - name: Test
+        run: python -m unittest app_paths_test.py
+      - name: Build app
+        run: bazel build //:app
