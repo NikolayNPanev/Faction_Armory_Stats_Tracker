@@ -1,0 +1,50 @@
+load("@rules_python//python:py_binary.bzl", "py_binary")
+load("@rules_python//python:py_library.bzl", "py_library")
+load("@rules_python//python:py_test.bzl", "py_test")
+load("@fast_pypi//:requirements.bzl", "requirement")
+
+py_library(
+    name = "armory_app",
+    srcs = [
+        "FAST.py",
+        "app_paths.py",
+        "gui.py",
+    ],
+    deps = [
+        requirement("openpyxl"),
+        requirement("PyQt5"),
+        requirement("requests"),
+    ],
+)
+
+py_binary(
+    name = "app",
+    srcs = ["app_main.py"],
+    main = "app_main.py",
+    deps = [":armory_app"],
+    visibility = ["//visibility:public"],
+)
+
+py_binary(
+    name = "windows_installer",
+    srcs = ["package_app.py"],
+    main = "package_app.py",
+    data = [
+        "FAST.py",
+        "app_main.py",
+        "app_paths.py",
+        "gui.py",
+        "installer.iss",
+    ],
+    deps = [
+        ":armory_app",
+        requirement("pyinstaller"),
+    ],
+    visibility = ["//visibility:public"],
+)
+
+py_test(
+    name = "app_paths_test",
+    srcs = ["app_paths_test.py"],
+    deps = [":armory_app"],
+)

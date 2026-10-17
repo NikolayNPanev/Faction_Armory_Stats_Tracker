@@ -7,10 +7,11 @@ import re
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QTableWidget, QTableWidgetItem, QSpinBox, QLabel, QPushButton, QFileDialog,
-    QTabWidget, QComboBox, QMessageBox
+    QTabWidget, QComboBox, QMessageBox, QInputDialog, QLineEdit
 )
-from PyQt5.QtCore import Qt, QProcess
+from PyQt5.QtCore import Qt, QProcess, QProcessEnvironment, QSettings
 from PyQt5.QtGui import QColor, QFont, QFontMetrics, QPainter, QPalette, QPen
+from app_paths import get_app_data_dir
 
 
 def _extract_items(data):
@@ -117,7 +118,8 @@ class ArmoryViewer(QMainWindow):
         self.organized_crimes = []
         self.faction_inventory = None
         self.project_dir = Path(__file__).resolve().parent
-        self.output_dir = str(self.project_dir / "OUTPUT")
+        self.data_dir = get_app_data_dir()
+        self.output_dir = str(self.data_dir / "OUTPUT")
         self.refresh_process = None
         self.init_ui()
         self.load_latest_data()
@@ -167,12 +169,38 @@ class ArmoryViewer(QMainWindow):
 
     def run_data_refresh(self):
         """Run FAST.py, then load the new exports when it finishes."""
+        settings = QSettings("FAST", "Faction Armory Stats Tracker")
+        api_key = settings.value("api_key", "", type=str).strip()
+        if not api_key:
+            legacy_key_file = self.project_dir / "faction_api_key.txt"
+            try:
+                api_key = legacy_key_file.read_text().strip()
+            except OSError:
+                api_key = ""
+            if not api_key:
+                api_key, accepted = QInputDialog.getText(
+                    self,
+                    "Torn API Key",
+                    "Enter your faction API key:",
+                    QLineEdit.Password,
+                )
+                if not accepted or not api_key.strip():
+                    return
+                api_key = api_key.strip()
+            settings.setValue("api_key", api_key)
+
         self.reload_btn.setEnabled(False)
         self.refresh_process = QProcess(self)
-        self.refresh_process.setWorkingDirectory(str(self.project_dir))
+        self.refresh_process.setWorkingDirectory(str(self.data_dir))
+        process_environment = QProcessEnvironment.systemEnvironment()
+        process_environment.insert("FAST_API_KEY", api_key)
+        self.refresh_process.setProcessEnvironment(process_environment)
         self.refresh_process.finished.connect(self._on_data_refresh_finished)
         self.refresh_process.errorOccurred.connect(self._on_data_refresh_error)
-        self.refresh_process.start(sys.executable, [str(self.project_dir / "FAST.py")])
+        if getattr(sys, "frozen", False):
+            self.refresh_process.start(sys.executable, ["--refresh"])
+        else:
+            self.refresh_process.start(sys.executable, [str(self.project_dir / "FAST.py")])
 
     def _on_data_refresh_finished(self, exit_code, exit_status):
         self.reload_btn.setEnabled(True)

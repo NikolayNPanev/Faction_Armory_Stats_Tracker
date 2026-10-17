@@ -1,5 +1,8 @@
 OUTPUT/*
 !OUTPUT/temp.txt
 faction_api_key.txt
+dist/
+build/
+bazel-*
 __pycache__
 faction_api_key.txt

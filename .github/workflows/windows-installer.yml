@@ -1,0 +1,40 @@
+name: Windows installer
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  installer:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: bazel-contrib/setup-bazel@0.19.1
+        with:
+          bazelisk-cache: true
+          disk-cache: windows-installer
+          repository-cache: true
+      - name: Install Inno Setup
+        run: choco install innosetup --yes --no-progress
+      - name: Run smoke test
+        run: python -m unittest app_paths_test.py
+      - name: Build installer
+        run: bazel run //:windows_installer
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FAST-Windows-Installer
+          path: dist/installer/FactionArmoryStatsTracker-Setup.exe
+          if-no-files-found: error
+      - name: Publish release asset
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/installer/FactionArmoryStatsTracker-Setup.exe
