@@ -260,6 +260,68 @@ def torn_faction_api_call(api_key,attribute="basic"):
     else:
         print(f"Error: Received status code {response.status_code} from the API.")
         return None
+
+def torn_organized_crimes_api_call(api_key):
+    """Retrieve the organized-crime catalogue and required items."""
+    import requests
+
+    url = f"https://api.torn.com/v2/torn/organizedcrimes?key={api_key}"
+    try:
+        response = requests.get(url, timeout=30)
+        response.raise_for_status()
+        data = response.json()
+    except (requests.RequestException, json.JSONDecodeError) as error:
+        print(f"Error retrieving organized-crime definitions: {error}")
+        return None
+
+    if not isinstance(data, dict) or not isinstance(data.get("organizedcrimes"), list):
+        print(f"Error retrieving organized-crime definitions: {data}")
+        return None
+    return data
+
+def torn_faction_inventory_api_call(api_key):
+    """Retrieve every faction armory category, including loan status."""
+    import requests
+
+    categories = (
+        "weapons", "armor", "temporary", "medical", "consumables",
+        "drugs", "boosters", "utilities", "loot",
+    )
+    inventory = []
+    inventory_timestamp = None
+    page_size = 100
+    for category in categories:
+        offset = 0
+        while True:
+            try:
+                response = requests.get(
+                    "https://api.torn.com/v2/faction/inventory",
+                    params={
+                        "key": api_key,
+                        "cat": category,
+                        "limit": page_size,
+                        "offset": offset,
+                    },
+                    timeout=30,
+                )
+                response.raise_for_status()
+                data = response.json()
+            except (requests.RequestException, json.JSONDecodeError) as error:
+                print(f"Error retrieving faction {category} inventory: {error}")
+                return None
+
+            page = data.get("inventory") if isinstance(data, dict) else None
+            if not isinstance(page, list):
+                print(f"Error retrieving faction {category} inventory: {data}")
+                return None
+
+            inventory.extend(page)
+            inventory_timestamp = data.get("inventory_timestamp", inventory_timestamp)
+            if len(page) < page_size:
+                break
+            offset += len(page)
+
+    return {"inventory": inventory, "inventory_timestamp": inventory_timestamp}
     
 def main():
     api_key_file = 'faction_api_key.txt'
@@ -267,6 +329,20 @@ def main():
     if api_key:
         output_dir = os.path.join(os.getcwd(), "OUTPUT")
         os.makedirs(output_dir, exist_ok=True)
+
+        organized_crimes = torn_organized_crimes_api_call(api_key)
+        if organized_crimes:
+            definitions_file = os.path.join(output_dir, "organized_crime_definitions.json")
+            with open(definitions_file, "w") as handle:
+                json.dump(organized_crimes, handle, indent=4)
+            print(f"Saved organized-crime definitions to: {definitions_file}")
+
+        faction_inventory = torn_faction_inventory_api_call(api_key)
+        if faction_inventory:
+            inventory_file = os.path.join(output_dir, "faction_inventory.json")
+            with open(inventory_file, "w") as handle:
+                json.dump(faction_inventory, handle, indent=4)
+            print(f"Saved faction inventory to: {inventory_file}")
 
         selections = {
             "temporary": "temporary",
